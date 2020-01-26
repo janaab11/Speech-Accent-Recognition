@@ -3,6 +3,7 @@ from collections import Counter
 import sys
 sys.path.append('../speech-accent-recognition/src>')
 import getsplit
+from tqdm import tqdm
 
 from keras import utils
 import accuracy
@@ -21,11 +22,12 @@ from keras.callbacks import EarlyStopping, TensorBoard
 DEBUG = True
 SILENCE_THRESHOLD = .01
 RATE = 24000
-N_MFCC = 13
+N_MFCC = 23
 COL_SIZE = 30
 EPOCHS = 10 #35#250
 
-def to_categorical(y):
+def to_categorical(train, test):
+    y=list(train)+list(test)
     '''
     Converts list of languages into a binary class matrix
     :param y (list): list of languages
@@ -34,8 +36,11 @@ def to_categorical(y):
     lang_dict = {}
     for index,language in enumerate(set(y)):
         lang_dict[language] = index
-    y = list(map(lambda x: lang_dict[x],y))
-    return utils.to_categorical(y, len(lang_dict))
+    print(lang_dict)
+    train = list(map(lambda x: lang_dict[x],train))
+    test = list(map(lambda x: lang_dict[x],test))
+    return utils.to_categorical(train, len(lang_dict)), utils.to_categorical(test, len(lang_dict))
+
 
 def get_wav(language_num):
     '''
@@ -176,9 +181,9 @@ def train_model(X_train,y_train,X_validation,y_validation, batch_size=128): #64
 
     # Fit model using ImageDataGenerator
     model.fit_generator(datagen.flow(X_train, y_train, batch_size=batch_size),
-                        steps_per_epoch=len(X_train) / 32
-                        , epochs=EPOCHS,
-                        callbacks=[es,tb], validation_data=(X_validation,y_validation))
+                        steps_per_epoch=len(X_train) / 32,
+                        epochs=EPOCHS,
+                        validation_data=(X_validation,y_validation))
 
     return (model)
 
@@ -191,7 +196,11 @@ def save_model(model, model_filename):
     '''
     model.save('../models/{}.h5'.format(model_filename))  # creates a HDF5 file 'my_model.h5'
 
-
+def run_multiprocessing(pool, func, tasks):
+    results=[]
+    for x in tqdm(pool.imap_unordered(func, tasks), total=len(tasks)):
+        results.append(x)
+    return results
 
 ############################################################
 
@@ -213,7 +222,7 @@ if __name__ == '__main__':
 
     # Load metadata
     df = pd.read_csv(file_name)
-
+    df['native_language']=df['native_language'].apply(lambda x: x.splitlines()[0])
 
     # Filter metadata to retrieve only files desired
     filtered_df = getsplit.filter_df(df)
@@ -236,32 +245,30 @@ if __name__ == '__main__':
     # import ipdb;
     # ipdb.set_trace()
 
-
-    acc_to_beat = test_count.most_common(1)[0][1] / float(np.sum(list(test_count.values())))
+    acc_to_beat = test_count[train_count.most_common(1)[0][0]] / float(np.sum(list(test_count.values())))
 
     # To categorical
-    y_train = to_categorical(y_train)
-    y_test = to_categorical(y_test)
+    y_train, y_test =to_categorical(y_train, y_test)
 
-    # Get resampled wav files using multiprocessing
+    # Get resampled wav files using multiprocessing pool
     if DEBUG:
         print('Loading wav files....')
     pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
-    X_train = pool.map(get_wav, X_train)
-    X_test = pool.map(get_wav, X_test)
+    X_train = run_multiprocessing(pool,get_wav,X_train)
+    X_test = run_multiprocessing(pool,get_wav,X_test)
 
     # Convert to MFCC
     if DEBUG:
         print('Converting to MFCC....')
-    X_train = pool.map(to_mfcc, X_train)
-    X_test = pool.map(to_mfcc, X_test)
+    X_train = run_multiprocessing(pool,to_mfcc,X_train)
+    X_test = run_multiprocessing(pool,to_mfcc,X_test)
 
     # Create segments from MFCCs
     X_train, y_train = make_segments(X_train, y_train)
     X_validation, y_validation = make_segments(X_test, y_test)
 
     # Randomize training segments
-    X_train, _, y_train, _ = train_test_split(X_train, y_train, test_size=0)
+    # X_train, _, y_train, _ = train_test_split(X_train, y_train, test_size=0)
 
     # Train model
     model = train_model(np.array(X_train), np.array(y_train), np.array(X_validation),np.array(y_validation))

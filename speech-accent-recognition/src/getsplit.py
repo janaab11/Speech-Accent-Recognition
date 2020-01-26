@@ -59,7 +59,7 @@ def split_people(df,test_size=0.2):
     '''
 
 
-    return train_test_split(df['language_num'],df['native_language'],test_size=test_size,random_state=1234)
+    return train_test_split(df['language_num'],df['native_language'],test_size=test_size,random_state=1234, stratify=df['native_language'])
 
 
 if __name__ == '__main__':

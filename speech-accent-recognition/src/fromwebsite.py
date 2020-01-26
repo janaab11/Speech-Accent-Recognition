@@ -4,11 +4,12 @@ from bs4 import BeautifulSoup
 import time
 import sys
 import re
+from tqdm import tqdm
 
 ROOT_URL = 'http://accent.gmu.edu/'
 BROWSE_LANGUAGE_URL = 'browse_language.php?function=find&language={}'
 WAIT = 1.2
-DEBUG = True
+DEBUG = False
 
 def get_htmls(urls):
     '''
@@ -17,11 +18,11 @@ def get_htmls(urls):
     :return (list): list of HTML strings
     '''
     htmls = []
-    for url in urls:
+    for url in tqdm(urls):
         if DEBUG:
             print('downloading from {}'.format(url))
         htmls.append(requests.get(url).text)
-        time.sleep(WAIT)
+        # time.sleep(WAIT)
 
     return(htmls)
 
