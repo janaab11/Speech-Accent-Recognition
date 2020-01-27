@@ -7,7 +7,7 @@ from pydub import AudioSegment
 
 class GetAudio:
 
-    def __init__(self, csv_filepath, destination_folder= '../audio/', wait= 1.5, debug=False ):
+    def __init__(self, csv_filepath, destination_folder= 'audio/', wait= 1.5, debug=False ):
         '''
         Initializes GetAudio class object
         :param destination_folder (str): Folder where audio files will be saved
@@ -28,7 +28,7 @@ class GetAudio:
         if not os.path.exists(self.destination_folder):
             if self.debug:
                 print('{} does not exist, creating'.format(self.destination_folder))
-            os.makedirs(self.destination_folder)
+            os.makedirs('../' + self.destination_folder)
 
     def get_audio(self):
         '''
@@ -47,7 +47,7 @@ class GetAudio:
                     print('downloading {}'.format(lang_num))
                 (filename, headers) = urllib.request.urlretrieve(self.url.format(lang_num))
                 sound = AudioSegment.from_mp3(filename)
-                sound.export(self.destination_folder + "{}.wav".format(lang_num), format="wav")
+                sound.export('../' + self.destination_folder + "{}.wav".format(lang_num), format="wav")
                 counter += 1
 
         return counter

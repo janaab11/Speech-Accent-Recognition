@@ -1,10 +1,8 @@
 import pandas as pd
 from collections import Counter
 import sys
-import os
 sys.path.append('../speech-accent-recognition/src>')
 import getsplit
-import pickle
 from tqdm import tqdm
 
 from keras import utils
@@ -24,13 +22,9 @@ from keras.callbacks import EarlyStopping, TensorBoard
 DEBUG = True
 SILENCE_THRESHOLD = .01
 RATE = 24000
-N_MFCC = 40
+N_MFCC = 23
 COL_SIZE = 30
-EPOCHS = 30 #35#250
-
-FILE = 'bio_data.csv'
-MODEL = 'model1'
-DATA_DIR = '../data/'
+EPOCHS = 10 #35#250
 
 def to_categorical(train, test):
     y=list(train)+list(test)
@@ -223,12 +217,8 @@ if __name__ == '__main__':
 
     # Load arguments
     # print(sys.argv)
-    try:
-        file_name = sys.argv[1]
-        model_filename = sys.argv[2]
-    except:
-        file_name = FILE
-        model_filename = MODEL
+    file_name = sys.argv[1]
+    model_filename = sys.argv[2]
 
     # Load metadata
     df = pd.read_csv(file_name)
@@ -263,23 +253,13 @@ if __name__ == '__main__':
     # Get resampled wav files using multiprocessing pool
     if DEBUG:
         print('Loading wav files....')
-    if not os.path.exists(DATA_DIR):
-        os.makedirs(DATA_DIR)
-    try:
-        X_train = pickle.load(open(DATA_DIR+'train.pickle','rb'))
-        X_test = pickle.load(open(DATA_DIR+'test.pickle','rb'))
-    except:
-        pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
-        X_train = run_multiprocessing(pool,get_wav,X_train)
-        X_test = run_multiprocessing(pool,get_wav,X_test)
-
-        pickle.dump(X_train, open(DATA_DIR+'train.pickle', 'wb'))
-        pickle.dump(X_test, open(DATA_DIR+'test.pickle', 'wb'))
+    pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
+    X_train = run_multiprocessing(pool,get_wav,X_train)
+    X_test = run_multiprocessing(pool,get_wav,X_test)
 
     # Convert to MFCC
     if DEBUG:
         print('Converting to MFCC....')
-    pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
     X_train = run_multiprocessing(pool,to_mfcc,X_train)
     X_test = run_multiprocessing(pool,to_mfcc,X_test)
 
